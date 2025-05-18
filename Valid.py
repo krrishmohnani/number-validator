@@ -1,41 +1,46 @@
 import streamlit as st
 import requests
-import time
+import json
 
-# Function to validate WhatsApp numbers
-def validate_whatsapp_numbers(numbers, api_token):
-    url = "https://whatsapp-number-validator3.p.rapidapi.com/WhatsappNumberHasItBulkWithToken"
-    headers = {
-        "x-rapidapi-host": "whatsapp-number-validator3.p.rapidapi.com",
-        "x-rapidapi-key": api_token,
-        "content-type": "application/json"
-    }
-    
-    payload = {"numbers": numbers}
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()  # Raise an error for bad responses
-        return response.json()
-    except requests.exceptions.HTTPError as err:
-        if response.status_code == 429:
-            st.warning("Too many requests. Please try again later.")
-            time.sleep(10)  # Wait for 10 seconds before retrying
-            return validate_whatsapp_numbers(numbers, api_token)  # Retry
+# Streamlit UI
+st.title("📱 WhatsApp Number Validator")
+st.write("Enter international phone numbers (with country code) separated by commas.")
+
+# Input field
+phone_input = st.text_area("Phone Numbers", placeholder="Example: 447748188019, 447999999999")
+
+# Submit button
+if st.button("Check Numbers"):
+    if phone_input.strip():
+        # Clean and format input numbers
+        phone_numbers = [num.strip() for num in phone_input.split(",") if num.strip().isdigit()]
+        
+        if not phone_numbers:
+            st.warning("Please enter valid phone numbers.")
         else:
-            st.error(f"An error occurred: {err}")
-            return None
+            # API request
+            url = "https://whatsapp-number-validator3.p.rapidapi.com/WhatsappNumberHasItBulkWithToken"
+            payload = {"phone_numbers": phone_numbers}
+            headers = {
+                "x-rapidapi-key": "c0a6f42258mshcceedc1d343e8c8p161593jsnb5ed74fe152f",  # Consider storing this securely
+                "x-rapidapi-host": "whatsapp-number-validator3.p.rapidapi.com",
+                "Content-Type": "application/json"
+            }
 
-# Streamlit app layout
-st.title("WhatsApp Number Validator")
-api_token = st.text_input("Enter your API Token", type="password")
+            try:
+                response = requests.post(url, json=payload, headers=headers)
+                result = response.json()
 
-if st.button("Validate Numbers"):
-    numbers = st.text_area("Enter numbers (comma separated)")
-    if numbers and api_token:
-        numbers_list = [number.strip() for number in numbers.split(",")]
-        results = validate_whatsapp_numbers(numbers_list, api_token)
-        if results:
-            st.json(results)
+                # Display results
+                st.subheader("Validation Results")
+                for item in result:
+                    status = "✅ Valid" if item["status"] == "valid" else "❌ Invalid"
+                    st.write(f"**{item['phone_number']}** → {status}")
+            except Exception as e:
+                st.error(f"API request failed: {e}")
     else:
-        st.warning("Please provide a list of numbers and your API token.")
+        st.warning("Enter at least one phone number.")
+
+# Optional footer
+st.markdown("---")
+st.caption("Powered by RapidAPI • Built with ❤️ using Streamlit")
